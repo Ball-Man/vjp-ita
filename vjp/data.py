@@ -1,6 +1,6 @@
 """Data loading and manipulation."""
 import os
-from typing import List
+from typing import List, Sequence
 import xml.etree.ElementTree as ET
 
 import importlib_resources as resources
@@ -36,3 +36,11 @@ def load_second_instance() -> List[ET.Element]:
         load_directory(resources.files(SECOND_INSTANCE_UPHOLD_RESOURCES))
         + load_directory(resources.files(SECOND_INSTANCE_REJECT_RESOURCES))
     )
+
+
+def findall(instances: Sequence[ET.Element], query: str) -> List[ET.Element]:
+    """Execute an XPath query on all given instances.
+
+    Results are flattened into an output list.
+    """
+    return sum((instance.findall(query) for instance in instances), start=[])
