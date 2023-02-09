@@ -11,6 +11,8 @@ FIRST_INSTANCE_REJECT_RESOURCES = 'vjp.dataset.Reject.FirstInstance'
 SECOND_INSTANCE_UPHOLD_RESOURCES = 'vjp.dataset.Uphold.SecondInstance'
 FIRST_INSTANCE_UPHOLD_RESOURCES = 'vjp.dataset.Uphold.FirstInstance'
 
+LINK_SEPARATOR = r'|'
+
 
 def load_instance_raw(file: os.PathLike) -> ET.Element:
     """Load and return an XML instance tree, with no cleanup."""
@@ -50,3 +52,31 @@ def findall(instances: Sequence[ET.Element], query: str) -> List[ET.Element]:
             mapping[result] = instance
 
     return list(mapping.keys()), mapping
+
+
+def extract_link(element: ET.Element, key: str) -> List[str]:
+    """Extract a list of linked element ids from an element's argument.
+
+    Links are considered to be separated by a pipe
+    (:attr:`LINK_SEPARATOR`).
+    """
+    return element.attrib[key].split(LINK_SEPARATOR)
+
+
+def extract_link_elements(document: ET.Element, element: ET.Element,
+                          key: str, proc=2) -> List[ET.Element]:
+    """Extract a list of linked elements from an element's argument.
+
+    Uses :func:`extract_link` to get the ids and retrieves them from
+    the given document.
+    """
+    links = extract_link(element, key)
+
+    link_elements = []
+    for link_id in links:
+        # IDs shall be unique
+        element = document.find(f".//partreq[@G='{proc}']/*[@ID='{link_id}']")
+        if element is not None:
+            link_elements.append(element)
+
+    return link_elements
