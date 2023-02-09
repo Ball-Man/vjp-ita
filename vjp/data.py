@@ -41,6 +41,12 @@ def load_second_instance() -> List[ET.Element]:
 def findall(instances: Sequence[ET.Element], query: str) -> List[ET.Element]:
     """Execute an XPath query on all given instances.
 
-    Results are flattened into an output list.
+    Return: a flattened output list of all the results and a mapping
+    from the results to the corresponding queried elements.
     """
-    return sum((instance.findall(query) for instance in instances), start=[])
+    mapping = {}
+    for instance in instances:
+        for result in instance.findall(query):
+            mapping[result] = instance
+
+    return list(mapping.keys()), mapping
