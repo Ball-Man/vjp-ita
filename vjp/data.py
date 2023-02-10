@@ -69,13 +69,21 @@ def extract_link_elements(document: ET.Element, element: ET.Element,
 
     Uses :func:`extract_link` to get the ids and retrieves them from
     the given document.
+
+    ``proc`` specifies the grade (``G`` attribute) to consider. If
+    set to ``None``, no filtering by grade is performed. Defaults to
+    ``2``.
     """
     links = extract_link(element, key)
 
     link_elements = []
     for link_id in links:
         # IDs shall be unique
-        element = document.find(f".//partreq[@G='{proc}']/*[@ID='{link_id}']")
+        query = f".//*[@G='{proc}']/*[@ID='{link_id}']"
+        if proc is None:
+            query = f".//*[@ID='{link_id}']"
+
+        element = document.find(query)
         if element is not None:
             link_elements.append(element)
 
