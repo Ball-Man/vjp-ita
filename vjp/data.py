@@ -4,6 +4,7 @@ from typing import List, Sequence
 import xml.etree.ElementTree as ET
 
 import importlib_resources as resources
+import pandas as pd
 
 OTHER_OUTCOMES_RESOURCES = 'vjp.dataset.OtherOutcomes'
 SECOND_INSTANCE_REJECT_RESOURCES = 'vjp.dataset.Reject.SecondInstance'
@@ -12,6 +13,8 @@ SECOND_INSTANCE_UPHOLD_RESOURCES = 'vjp.dataset.Uphold.SecondInstance'
 FIRST_INSTANCE_UPHOLD_RESOURCES = 'vjp.dataset.Uphold.FirstInstance'
 
 LINK_SEPARATOR = r'|'
+EDGE_RELATIONS = {'O', 'D', 'PRO', 'SUP', 'ATT'}
+"""Tag attributes that can be used as relations in a graph."""
 
 
 def load_instance_raw(file: os.PathLike) -> ET.Element:
@@ -88,3 +91,42 @@ def extract_link_elements(document: ET.Element, element: ET.Element,
             link_elements.append(element)
 
     return link_elements
+
+
+def build_tag_triples(document: ET.Element,
+                      relations: Sequence[str] = EDGE_RELATIONS
+                      ) -> pd.DataFrame:
+    """Build triples from an XML document, suitable to build a graph.
+
+    Given a set of string names of attributes to explore, each attribute
+    becomes a relation in a triple where the referenced tag IDs are the
+    targets and the owner's ID is the source.
+    Tags that are not implied in any relation are ignored.
+    """
+    # Perform a DFS starting, starting from all sources having the
+    # desired attribute
+    fringe = sum(
+        (document.findall(f'.//*[@{relation}]') for relation in relations),
+        start=[])
+
+    triples = set()
+
+    while fringe:
+        source = fringe.pop()
+
+        # For each relation defined by the element
+        for relation in EDGE_RELATIONS.intersection(source.attrib):
+            targets = extract_link_elements(document, source, relation)
+
+            # Generate a triple for each target of said relation
+            # If a duplicate is found, drop current element, it's an
+            # infinite loop
+            for target in targets:
+                triple = (source.get('ID'), target.get('ID'), relation)
+                if triple in triples:
+                    break
+
+                triples.add(triple)
+                fringe.append(target)
+
+    return pd.DataFrame(triples, columns=['source', 'target', 'edge'])
