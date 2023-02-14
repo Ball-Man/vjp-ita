@@ -13,7 +13,7 @@ SECOND_INSTANCE_UPHOLD_RESOURCES = 'vjp.dataset.Uphold.SecondInstance'
 FIRST_INSTANCE_UPHOLD_RESOURCES = 'vjp.dataset.Uphold.FirstInstance'
 
 LINK_SEPARATOR = r'|'
-EDGE_RELATIONS = {'O', 'D', 'PRO', 'SUP', 'ATT'}
+EDGE_RELATIONS = {'O', 'D', 'PRO', 'SUP', 'ATT', 'CON', 'REPH'}
 """Tag attributes that can be used as relations in a graph."""
 
 
