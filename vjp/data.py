@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 
 import importlib_resources as resources
 import pandas as pd
+import networkx as nx
 
 OTHER_OUTCOMES_RESOURCES = 'vjp.dataset.OtherOutcomes'
 SECOND_INSTANCE_REJECT_RESOURCES = 'vjp.dataset.Reject.SecondInstance'
@@ -130,3 +131,69 @@ def build_tag_triples(document: ET.Element,
                 fringe.append(target)
 
     return pd.DataFrame(triples, columns=['source', 'target', 'edge'])
+
+
+def dataframe_from_graphs(
+        graphs: Sequence[nx.Graph],
+        samples: Sequence[ET.Element],
+        tag_names: Sequence[str] = ('req', 'arg', 'claim')) -> pd.DataFrame:
+    """Given a sequence of graphs and corresponding samples, build dataframe.
+
+    The resulting dataframe is constructed by looking at the connected
+    components of each graph. From each connected component one or more
+    samples can be generated, based on the number of requests in said
+    component. All records are concatenated together.
+
+    Columns: one per considered tag type (found in the connected
+    component). The ``fact`` tag is always included, even though it is
+    not found in any connected component (global knowledge).
+    A final column for the label (0 -> rejected, 1 -> uphold).
+    The data for each cell is given by the concatenation of all the text
+    contained by each tag, divided by tag type (column) and connected
+    component (row).
+    """
+    assert len(graphs) == len(samples), (
+        'Graph and samples lists must have the same amount of elements')
+
+    df_list = []
+
+    for graph, document in zip(graphs, samples):
+        for component in tuple(nx.connected_components(graph.to_undirected())):
+            take = False
+            label = -1
+            for node in component:
+                if node.lower().startswith('dec'):
+                    dec = document.find(f".//*[@ID='{node}']")
+
+                    try:
+                        label = int(dec.get('E'))
+                        if label not in (0, 1):
+                            raise ValueError
+                    except ValueError:
+                        continue
+
+                    take = int(dec.get('G')) == 2
+                    break
+
+            if not take:
+                continue
+
+            concat_lists = [[] for _ in tag_names]
+            for node in component:
+                for i, prefix in enumerate(tag_names):
+                    if node.lower().startswith(prefix):
+                        node_element = document.find(f".//*[@ID='{node}']")
+                        if node_element.text is not None:
+                            concat_lists[i].append(node_element.text)
+
+            fact_element = document.find(f".//fact")
+            fact = ''
+            if fact_element is not None:
+                fact = fact_element.text
+
+            req_prefix_index = tag_names.index('req')
+            for req_text in concat_lists[req_prefix_index]:
+                df_list.append([fact, *map(' '.join, concat_lists), label])
+                df_list[-1][1 + req_prefix_index] = req_text
+
+    return pd.DataFrame(df_list, columns=['fact', *tag_names, 'label'])
