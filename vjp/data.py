@@ -133,6 +133,19 @@ def build_tag_triples(document: ET.Element,
     return pd.DataFrame(triples, columns=['source', 'target', 'edge'])
 
 
+def tagid_in_sequence(tagid: str, tag_names: Sequence[str]) -> int:
+    """Return whether the given tag ID is of one of the given types.
+
+    The index of the related name in the sequence is returned (``-1``
+    if not found).
+    """
+    for i, prefix in enumerate(tag_names):
+        if tagid.lower().startswith(prefix):
+            return i
+
+    return -1
+
+
 def dataframe_from_graphs(
         graphs: Sequence[nx.Graph],
         samples: Sequence[ET.Element],
@@ -153,40 +166,45 @@ def dataframe_from_graphs(
     component (row).
     """
     assert len(graphs) == len(samples), (
-        'Graph and samples lists must have the same amount of elements')
+        'Graph and sample lists must have the same amount of elements')
 
     df_list = []
 
     for graph, document in zip(graphs, samples):
         for component in tuple(nx.connected_components(graph.to_undirected())):
-            take = False
-            label = -1
-            for node in component:
-                if node.lower().startswith('dec'):
-                    dec = document.find(f".//*[@ID='{node}']")
+            # Extract decisional tags
+            dec_ids = tuple(filter(
+                lambda id_: tagid_in_sequence(id_, ('dec',)) == 0,
+                component))
 
-                    try:
-                        label = int(dec.get('E'))
-                        if label not in (0, 1):
-                            raise ValueError
-                    except ValueError:
-                        continue
-
-                    take = int(dec.get('G')) == 2
-                    break
-
-            if not take:
+            # Decisions represent labels, skip if none is found
+            if not dec_ids:
                 continue
 
-            concat_lists = [[] for _ in tag_names]
-            for node in component:
-                for i, prefix in enumerate(tag_names):
-                    if node.lower().startswith(prefix):
-                        node_element = document.find(f".//*[@ID='{node}']")
-                        if node_element.text is not None:
-                            concat_lists[i].append(node_element.text)
+            # Also skip if the label is not 0 or 1
+            # NB: How to handle multiple decisions in one connected component?
+            label = -1
+            dec_element = document.find(f".//*[@ID='{dec_ids[0]}']")
+            try:
+                label = int(dec_element.get('E'))
+                if label not in (0, 1):
+                    raise ValueError
+            except ValueError:
+                continue
 
-            fact_element = document.find(f".//fact")
+            # Build a sequence per tag type
+            concat_lists = [[] for _ in tag_names]
+
+            node_indeces = map(lambda id_: tagid_in_sequence(id_, tag_names),
+                               component)
+            for node, index in zip(component, node_indeces):
+                node_element = document.find(f".//*[@ID='{node}']")
+
+                if index >= 0 and node_element.text is not None:
+                    concat_lists[index].append(node_element.text)
+
+            # Add fact column
+            fact_element = document.find(".//fact")
             fact = ''
             if fact_element is not None:
                 fact = fact_element.text
