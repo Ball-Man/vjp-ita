@@ -58,6 +58,20 @@ def findall(instances: Sequence[ET.Element], query: str) -> List[ET.Element]:
     return list(mapping.keys()), mapping
 
 
+def filter_other_outcomes(instances: List[ET.Element]) -> List[ET.Element]:
+    """Return instances with at least an admissible outcome.
+
+    Data is copied.
+    """
+    decisions, decision_mapping = findall(instances,
+                                          ".//courtdec[@G='2']/dec")
+    upheld, _ = findall(decisions, ".[@E='1']")
+    rejected, _ = findall(decisions, ".[@E='0']")
+
+    decisions = upheld + rejected
+    return list(set(decision_mapping[decision] for decision in decisions))
+
+
 def extract_link(element: ET.Element, key: str) -> List[str]:
     """Extract a list of linked element ids from an element's argument.
 
