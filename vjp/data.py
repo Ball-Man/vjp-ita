@@ -149,7 +149,8 @@ def tagid_in_sequence(tagid: str, tag_names: Sequence[str]) -> int:
 def dataframe_from_graphs(
         graphs: Sequence[nx.Graph],
         samples: Sequence[ET.Element],
-        tag_names: Sequence[str] = ('req', 'arg', 'claim')) -> pd.DataFrame:
+        tag_names: Sequence[str] = ('req', 'arg', 'claim'),
+        join_token: str = ' ') -> pd.DataFrame:
     """Given a sequence of graphs and corresponding samples, build dataframe.
 
     The resulting dataframe is constructed by looking at the connected
@@ -211,7 +212,8 @@ def dataframe_from_graphs(
 
             req_prefix_index = tag_names.index('req')
             for req_text in concat_lists[req_prefix_index]:
-                df_list.append([fact, *map(' '.join, concat_lists), label])
+                df_list.append([fact, *map(join_token.join, concat_lists),
+                                label])
                 df_list[-1][1 + req_prefix_index] = req_text
 
     return pd.DataFrame(df_list, columns=['fact', *tag_names, 'label'])
