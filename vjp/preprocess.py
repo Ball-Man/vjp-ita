@@ -55,6 +55,21 @@ class NewAddAction(argparse.Action):
         getattr(namespace, self.dest).update(values)
 
 
+class NewAppendAction(argparse.Action):
+    """Custom argparse action: append value to list.
+
+    Overrides defaults.
+    """
+    new_list_created = False
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not self.new_list_created:
+            self.new_list_created = True
+            setattr(namespace, self.dest, [])
+
+        getattr(namespace, self.dest).extend(values)
+
+
 def preprocess(namespace: Namespace) -> pd.DataFrame:
     """Apply preprocessing based on the given parameters."""
     level = namespace.level.value
@@ -73,7 +88,9 @@ def preprocess(namespace: Namespace) -> pd.DataFrame:
     graphs = [nx.from_pandas_edgelist(triples, edge_attr='edge',
                                       create_using=nx.DiGraph())
               for triples in triples_gen]
-    dataframe = data.dataframe_from_graphs(graphs, documents)
+    dataframe = data.dataframe_from_graphs(
+        graphs, documents, tag_names=namespace.connected_component_tags,
+        join_token=namespace.tag_join_token)
 
     # if level >= ...
 
@@ -97,6 +114,9 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--edge-relation', nargs='*',
                         dest='edge_relations', type=str,
                         action=NewAddAction)
+    parser.add_argument('-c', '--connected-component-tags', nargs='*',
+                        dest='connected_component_tags', type=str,
+                        action=NewAppendAction)
 
     namespace = parser.parse_args(namespace=Namespace())
     dump_preprocess(namespace)
