@@ -6,7 +6,7 @@ level of preprocessing to meet.
 import argparse
 import enum
 import pathlib
-from typing import Optional, Sequence
+from typing import Sequence, Set
 
 import importlib_resources as resources
 import networkx as nx
@@ -30,9 +30,29 @@ class Namespace:
     output_file: str
     level: PreprocessingLevels = PreprocessingLevels.CONNECTED_COMPONENTS
     input_folders: Sequence[resources.abc.Traversable] = ()
+    edge_relations: Set[str] = set()
+    connected_component_tags: Sequence[str] = ()
+    tag_join_token: str = ' '
 
     def __init__(self):
         self.input_folders = []
+        self.edge_relations = data.EDGE_RELATIONS
+        self.connected_component_tags = ['req', 'arg', 'claim']
+
+
+class NewAddAction(argparse.Action):
+    """Custom argparse action: add value to a set.
+
+    Overrides defaults.
+    """
+    new_set_created = False
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not self.new_set_created:
+            self.new_set_created = True
+            setattr(namespace, self.dest, set())
+
+        getattr(namespace, self.dest).update(values)
 
 
 def preprocess(namespace: Namespace) -> pd.DataFrame:
@@ -48,7 +68,8 @@ def preprocess(namespace: Namespace) -> pd.DataFrame:
 
     # Apply preprocessing pipeline based on given level
     documents = data.filter_other_outcomes(documents)
-    triples_gen = (data.build_tag_triples(document) for document in documents)
+    triples_gen = (data.build_tag_triples(document, namespace.edge_relations)
+                   for document in documents)
     graphs = [nx.from_pandas_edgelist(triples, edge_attr='edge',
                                       create_using=nx.DiGraph())
               for triples in triples_gen]
@@ -73,6 +94,9 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--input-folder', nargs='*',
                         dest='input_folders', type=pathlib.Path,
                         action='append')
+    parser.add_argument('-e', '--edge-relation', nargs='*',
+                        dest='edge_relations', type=str,
+                        action=NewAddAction)
 
     namespace = parser.parse_args(namespace=Namespace())
     dump_preprocess(namespace)
