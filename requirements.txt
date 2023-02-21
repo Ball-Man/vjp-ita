@@ -1,3 +1,4 @@
 importlib_resources
 pandas
 networkx
+pyarrow
