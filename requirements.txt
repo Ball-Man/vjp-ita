@@ -2,3 +2,6 @@ importlib_resources
 pandas
 networkx
 pyarrow
+nltk
+scikit-learn
+gensim
