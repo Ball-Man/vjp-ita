@@ -33,11 +33,13 @@ class Namespace:
     edge_relations: Set[str] = set()
     connected_component_tags: Sequence[str] = ()
     tag_join_token: str = ' '
+    use_child_text_tag_names: Sequence[str] = ()
 
     def __init__(self):
         self.input_folders = []
         self.edge_relations = data.EDGE_RELATIONS
         self.connected_component_tags = ['req', 'arg', 'claim']
+        self.use_child_text_tag_names = ('mot')
 
 
 class NewAddAction(argparse.Action):
@@ -83,6 +85,7 @@ def preprocess(namespace: Namespace) -> pd.DataFrame:
 
     # Apply preprocessing pipeline based on given level
     documents = data.filter_other_outcomes(documents)
+    documents = data.sort_documents(documents)
     triples_gen = (data.build_tag_triples(document, namespace.edge_relations)
                    for document in documents)
     graphs = [nx.from_pandas_edgelist(triples, edge_attr='edge',
@@ -90,7 +93,7 @@ def preprocess(namespace: Namespace) -> pd.DataFrame:
               for triples in triples_gen]
     dataframe = data.dataframe_from_graphs(
         graphs, documents, tag_names=namespace.connected_component_tags,
-        join_token=namespace.tag_join_token)
+        join_token=namespace.tag_join_token, use_child_text_tag_names=namespace.use_child_text_tag_names)
 
     # if level >= ...
 
@@ -116,6 +119,10 @@ if __name__ == '__main__':
                         action=NewAddAction)
     parser.add_argument('-c', '--connected-component-tags', nargs='*',
                         dest='connected_component_tags', type=str,
+                        action=NewAppendAction)
+    
+    parser.add_argument('-c', '--use_child_text_tag_names', nargs='*',
+                        dest='use_child_text_tag_names', type=str,
                         action=NewAppendAction)
 
     namespace = parser.parse_args(namespace=Namespace())

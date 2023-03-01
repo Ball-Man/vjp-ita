@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 import importlib_resources as resources
 import pandas as pd
 import networkx as nx
+import re
 
 OTHER_OUTCOMES_RESOURCES = 'vjp.dataset.OtherOutcomes'
 SECOND_INSTANCE_REJECT_RESOURCES = 'vjp.dataset.Reject.SecondInstance'
@@ -20,7 +21,9 @@ EDGE_RELATIONS = {'O', 'D', 'PRO', 'SUP', 'ATT', 'CON', 'REPH'}
 
 def load_instance_raw(file: os.PathLike) -> ET.Element:
     """Load and return an XML instance tree, with no cleanup."""
-    return ET.parse(file).getroot()
+    root =  ET.parse(file).getroot()
+    root.set('source_file', file)
+    return root
 
 
 def load_directory(directory: resources.abc.Traversable) -> List[ET.Element]:
@@ -42,7 +45,6 @@ def load_second_instance() -> List[ET.Element]:
         load_directory(resources.files(SECOND_INSTANCE_UPHOLD_RESOURCES))
         + load_directory(resources.files(SECOND_INSTANCE_REJECT_RESOURCES))
     )
-
 
 def findall(instances: Sequence[ET.Element], query: str) -> List[ET.Element]:
     """Execute an XPath query on all given instances.
@@ -159,11 +161,17 @@ def tagid_in_sequence(tagid: str, tag_names: Sequence[str]) -> int:
 
     return -1
 
+def get_node_sub_text(node_element: ET.Element) -> str:
+    ret = "".join([get_node_sub_text(child) for child in list(node_element) if child.text is not None])
+    if node_element.text is not None:
+        return (re.sub('\s+', ' ', node_element.text) + " " + ret).strip()
+    return ret
 
 def dataframe_from_graphs(
         graphs: Sequence[nx.Graph],
         samples: Sequence[ET.Element],
         tag_names: Sequence[str] = ('req', 'arg', 'claim'),
+        use_child_text_tag_names: Sequence[str] = ('mot', 'dec'),
         join_token: str = ' ') -> pd.DataFrame:
     """Given a sequence of graphs and corresponding samples, build dataframe.
 
@@ -184,8 +192,7 @@ def dataframe_from_graphs(
         'Graph and sample lists must have the same amount of elements')
 
     df_list = []
-
-    for graph, document in zip(graphs, samples):
+    for document_index, (graph, document) in enumerate(zip(graphs, samples)):
         for component in tuple(nx.connected_components(graph.to_undirected())):
             # Extract decisional tags
             dec_ids = tuple(filter(
@@ -212,11 +219,14 @@ def dataframe_from_graphs(
 
             node_indeces = map(lambda id_: tagid_in_sequence(id_, tag_names),
                                component)
+            
             for node, index in zip(component, node_indeces):
                 node_element = document.find(f".//*[@ID='{node}']")
-
-                if index >= 0 and node_element.text is not None:
-                    concat_lists[index].append(node_element.text)
+                if index >= 0:
+                    if any([node.lower().startswith(tag) for tag in use_child_text_tag_names]):
+                        concat_lists[index].append(get_node_sub_text(node_element))
+                    elif node_element.text is not None:
+                        concat_lists[index].append(re.sub('\s+', ' ', node_element.text).strip())
 
             # Add fact column
             fact_element = document.find(".//fact")
@@ -226,8 +236,11 @@ def dataframe_from_graphs(
 
             req_prefix_index = tag_names.index('req')
             for req_text in concat_lists[req_prefix_index]:
-                df_list.append([fact, *map(join_token.join, concat_lists),
+                df_list.append([document_index, fact, *map(join_token.join, concat_lists),
                                 label])
                 df_list[-1][1 + req_prefix_index] = req_text
 
-    return pd.DataFrame(df_list, columns=['fact', *tag_names, 'label'])
+    return pd.DataFrame(df_list, columns=['document_index', 'fact', *tag_names, 'label'])
+
+def sort_documents(documents: Sequence[ET.Element]) -> Sequence[ET.Element]:
+    return sorted(documents, key=lambda x: x.get('source_file'))
