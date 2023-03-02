@@ -1,7 +1,10 @@
-from typing import List, Tuple
+from typing import List, Tuple, Iterable
 from itertools import chain
+from operator import or_
+from functools import reduce
 
 import pandas as pd
+import numpy as np
 from mip import Model, xsum, minimize, BINARY, INTEGER
 
 
@@ -106,3 +109,22 @@ def compute_decision_folds(dataframe: pd.DataFrame, num_folds=5, verbose=False,
     return tuple(
         dataframe.document_index.isin(document_labels_df[document_fold].index)
         for document_fold in document_folds)
+
+
+def split(dataframe: pd.DataFrame, num_folds=5, max_seconds=10
+          ) -> Iterable[Tuple[List[int], List[int]]]:
+    """Generator of train-test splits based on document level kfolds.
+
+    Designed to be in a format similar to the one of ``scikit-learn``
+    validators, and particularly in the right format to be used as
+    ``cv`` parameter in ``sklearn.model_selection.GridSearchCV``.
+
+    Yields a pair of list of indeces: ``(train_indeces, test_indeces)``
+    """
+    folds = compute_decision_folds(dataframe, num_folds=num_folds,
+                                   max_seconds=max_seconds)
+    for i, test_split in enumerate(folds):
+        train_folds = folds[:i] + folds[i + 1:]
+        train_split = reduce(or_, train_folds,
+                             np.array(train_folds[0]))
+        yield np.where(train_split)[0], np.where(test_split)[0]
