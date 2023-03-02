@@ -219,14 +219,17 @@ def dataframe_from_graphs(
 
             node_indeces = map(lambda id_: tagid_in_sequence(id_, tag_names),
                                component)
-            
+
             for node, index in zip(component, node_indeces):
                 node_element = document.find(f".//*[@ID='{node}']")
                 if index >= 0:
-                    if any([node.lower().startswith(tag) for tag in use_child_text_tag_names]):
-                        concat_lists[index].append(get_node_sub_text(node_element))
+                    if any(node.lower().startswith(tag)
+                           for tag in use_child_text_tag_names):
+                        concat_lists[index].append(
+                            get_node_sub_text(node_element))
                     elif node_element.text is not None:
-                        concat_lists[index].append(re.sub('\s+', ' ', node_element.text).strip())
+                        concat_lists[index].append(
+                            re.sub(r'\s+', ' ', node_element.text).strip())
 
             # Add fact column
             fact_element = document.find(".//fact")
@@ -236,11 +239,14 @@ def dataframe_from_graphs(
 
             req_prefix_index = tag_names.index('req')
             for req_text in concat_lists[req_prefix_index]:
-                df_list.append([document_index, fact, *map(join_token.join, concat_lists),
+                df_list.append([document_index, fact, *map(join_token.join,
+                                                           concat_lists),
                                 label])
                 df_list[-1][1 + req_prefix_index] = req_text
 
-    return pd.DataFrame(df_list, columns=['document_index', 'fact', *tag_names, 'label'])
+    return pd.DataFrame(df_list, columns=['document_index', 'fact', *tag_names,
+                                          'label'])
+
 
 def sort_documents(documents: Sequence[ET.Element]) -> Sequence[ET.Element]:
     return sorted(documents, key=lambda x: x.get('source_file'))
