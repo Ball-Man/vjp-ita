@@ -1,6 +1,7 @@
 from itertools import chain
 from typing import List, Tuple
 
+import pandas as pd
 from mip import Model, xsum, minimize, BINARY, INTEGER
 
 
@@ -77,3 +78,24 @@ def compute_folds(samples, num_folds=5,
         list(map(lambda x: bool(round(x.x)), fold_vars))
         for fold_vars in folds_x
     )
+
+
+def compute_decision_folds(dataframe: pd.DataFrame, num_folds=5,
+                           verbose=False) -> Tuple[List[bool], ...]:
+    """Use :func:`compute_folds` to compute a split at decision level.
+
+    Meaning of optional arguments and output format are relatable to
+    the ones of :func:`compute_folds`, but at decision level instead of
+    document level. Note that the split still happens at document level,
+    this function simply expands it at a finer granularity for practical
+    reasons.
+    """
+    document_labels_df = (
+        pd.get_dummies(dataframe[['document_index', 'label']],
+                       columns=['label']).groupby('document_index').sum())
+    document_folds = compute_folds(document_labels_df.values,
+                                   num_folds=num_folds, verbose=verbose)
+
+    return tuple(
+        dataframe.document_index.isin(document_labels_df[document_fold].index)
+        for document_fold in document_folds)
