@@ -1,12 +1,12 @@
-from itertools import chain
 from typing import List, Tuple
+from itertools import chain
 
 import pandas as pd
 from mip import Model, xsum, minimize, BINARY, INTEGER
 
 
-def compute_folds(samples, num_folds=5,
-                  verbose=False) -> Tuple[List[bool], ...]:
+def compute_folds(samples, num_folds=5, verbose=False,
+                  max_seconds=10) -> Tuple[List[bool], ...]:
     """Retrieve balanced kfolds at document level.
 
     Expects as input a ``(N, 2)`` matrix where each sample represents a
@@ -15,7 +15,6 @@ def compute_folds(samples, num_folds=5,
     document. The function employs an integer programming model to
     provide ``num_folds`` partitions over the samples, as balanced as
     possible in terms of total number of positives and negatives.
-    Sampling is not stratified.
 
     Output is a tuple in the form: ``(boolean_fold_0, ...)``.
     Each element of the tuple is a boolean list that can be used to
@@ -26,6 +25,8 @@ def compute_folds(samples, num_folds=5,
     """
     folds_range = range(num_folds)
     samples_range = range(len(samples))
+    total_instances = sum(map(sum, samples))
+    fold_ratio = total_instances / 10
 
     model = Model('balanced kfolds')
     model.verbose = verbose
@@ -41,7 +42,7 @@ def compute_folds(samples, num_folds=5,
                       for fold_index in folds_range) == 1
 
     # Compute counts for positive and negative labels,
-    # minimize their maximum
+    # minimize their distance from the target amounts
     positives = [xsum(folds_x[fold_index][sample_index]
                       * samples[sample_index][1]
                       for sample_index in samples_range)
@@ -52,10 +53,12 @@ def compute_folds(samples, num_folds=5,
                  for fold_index in folds_range]
 
     for value in chain(positives, negatives):
-        model += max_ >= value
+        model += value - fold_ratio <= max_
+        model += - (value - fold_ratio) <= max_
+
     model.objective = minimize(max_)
 
-    model.optimize()
+    status = model.optimize(max_seconds=max_seconds)
 
     if verbose:
         output_folds = [[] for _ in folds_range]
@@ -74,14 +77,16 @@ def compute_folds(samples, num_folds=5,
         print('folds positive counts:', folds_values_positives)
         print('folds negative counts:', folds_values_negatives)
 
+        print('status', status)
+
     return tuple(
         list(map(lambda x: bool(round(x.x)), fold_vars))
         for fold_vars in folds_x
     )
 
 
-def compute_decision_folds(dataframe: pd.DataFrame, num_folds=5,
-                           verbose=False) -> Tuple[List[bool], ...]:
+def compute_decision_folds(dataframe: pd.DataFrame, num_folds=5, verbose=False,
+                           max_seconds=10) -> Tuple[List[bool], ...]:
     """Use :func:`compute_folds` to compute a split at decision level.
 
     Meaning of optional arguments and output format are relatable to
@@ -94,7 +99,9 @@ def compute_decision_folds(dataframe: pd.DataFrame, num_folds=5,
         pd.get_dummies(dataframe[['document_index', 'label']],
                        columns=['label']).groupby('document_index').sum())
     document_folds = compute_folds(document_labels_df.values,
-                                   num_folds=num_folds, verbose=verbose)
+                                   num_folds=num_folds,
+                                   verbose=verbose,
+                                   max_seconds=max_seconds)
 
     return tuple(
         dataframe.document_index.isin(document_labels_df[document_fold].index)
