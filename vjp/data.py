@@ -21,7 +21,7 @@ EDGE_RELATIONS = {'O', 'D', 'PRO', 'SUP', 'ATT', 'CON', 'REPH'}
 
 def load_instance_raw(file: os.PathLike) -> ET.Element:
     """Load and return an XML instance tree, with no cleanup."""
-    root =  ET.parse(file).getroot()
+    root = ET.parse(file).getroot()
     root.set('source_file', file)
     return root
 
@@ -45,6 +45,7 @@ def load_second_instance() -> List[ET.Element]:
         load_directory(resources.files(SECOND_INSTANCE_UPHOLD_RESOURCES))
         + load_directory(resources.files(SECOND_INSTANCE_REJECT_RESOURCES))
     )
+
 
 def findall(instances: Sequence[ET.Element], query: str) -> List[ET.Element]:
     """Execute an XPath query on all given instances.
@@ -161,11 +162,14 @@ def tagid_in_sequence(tagid: str, tag_names: Sequence[str]) -> int:
 
     return -1
 
+
 def get_node_sub_text(node_element: ET.Element) -> str:
-    ret = "".join([get_node_sub_text(child) for child in list(node_element) if child.text is not None])
+    ret = ''.join(get_node_sub_text(child) for child in list(node_element)
+                  if child.text is not None)
     if node_element.text is not None:
-        return (re.sub('\s+', ' ', node_element.text) + " " + ret).strip()
+        return (re.sub(r'\s+', ' ', node_element.text) + ' ' + ret).strip()
     return ret
+
 
 def dataframe_from_graphs(
         graphs: Sequence[nx.Graph],
