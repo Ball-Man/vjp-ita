@@ -39,7 +39,7 @@ class Namespace:
         self.input_folders = []
         self.edge_relations = data.EDGE_RELATIONS
         self.connected_component_tags = ['req', 'arg', 'claim']
-        self.use_child_text_tag_names = ('mot')
+        self.use_child_text_tag_names = ('mot', 'dec')
 
 
 class NewAddAction(argparse.Action):
@@ -93,7 +93,8 @@ def preprocess(namespace: Namespace) -> pd.DataFrame:
               for triples in triples_gen]
     dataframe = data.dataframe_from_graphs(
         graphs, documents, tag_names=namespace.connected_component_tags,
-        join_token=namespace.tag_join_token, use_child_text_tag_names=namespace.use_child_text_tag_names)
+        join_token=namespace.tag_join_token,
+        use_child_text_tag_names=namespace.use_child_text_tag_names)
 
     # if level >= ...
 
@@ -120,7 +121,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--connected-component-tags', nargs='*',
                         dest='connected_component_tags', type=str,
                         action=NewAppendAction)
-    
+
     parser.add_argument('-c', '--use_child_text_tag_names', nargs='*',
                         dest='use_child_text_tag_names', type=str,
                         action=NewAppendAction)
