@@ -29,7 +29,7 @@ def compute_folds(samples, num_folds=5, verbose=False,
     folds_range = range(num_folds)
     samples_range = range(len(samples))
     total_instances = sum(map(sum, samples))
-    fold_ratio = total_instances / 10
+    fold_ratio = total_instances / (num_folds * 2)
 
     model = Model('balanced kfolds')
     model.verbose = verbose
