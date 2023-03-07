@@ -1,5 +1,6 @@
 """Text manipulation."""
 from typing import Callable, Dict
+from functools import partial
 
 import nltk
 from nltk.corpus import stopwords
@@ -68,15 +69,40 @@ def lemmatize(text: str,
     return ' '.join(lemmas)
 
 
-cumulative_pipeline = text_pipeline(
+count_pipeline_head = text_pipeline(
     str.lower,
     remove_punctuation,
-    remove_stopwords,
+    remove_stopwords
+)
+"""Basic text preprocessing pipeline for count based encodings.
+
+Punctuation and stopwords are removed. No lemmatization or stemming.
+Designed to be used as head in more complex pipelines.
+"""
+
+count_drop_pipeline = text_pipeline(
+    count_pipeline_head,
     lemmatize
 )
-"""Default text preprocessing pipeline for cumulative encodings.
+"""Text preprocessing pipeline for count based encodings.
 
 Designed for bag of words, tf-idf, etc.
 All symbols and stopwords are removed. Words are lemmatized.
-Unknown lemmas are removed.
+Unknown lemmas are removed (dropped).
+
+Uses :attr:`count_pipeline_head` as head.
+"""
+
+
+count_keep_pipeline = text_pipeline(
+    count_pipeline_head,
+    partial(lemmatize, drop_missing=False)
+)
+"""Text preprocessing pipeline for count based encodings.
+
+Designed for bag of words, tf-idf, etc.
+All symbols and stopwords are removed. Words are lemmatized.
+Unknown lemmas are kept unchanged.
+
+Uses :attr:`count_pipeline_head` as head.
 """
