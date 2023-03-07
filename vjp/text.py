@@ -57,9 +57,13 @@ def lemmatize(text: str,
     By default, missing words (words that are not in the lemmas
     dictionary) are completely removed.
     """
-    lemmas = map(lemmatization_dict.get, text.split())
     if drop_missing:
-        lemmas = filter(bool, lemmas)
+        map_fun = lemmatization_dict.get                        # NOQA
+    else:
+        map_fun = lambda w: lemmatization_dict.get(w, w)        # NOQA
+
+    lemmas = map(map_fun, text.split())
+    lemmas = filter(bool, lemmas)
 
     return ' '.join(lemmas)
 
