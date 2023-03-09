@@ -254,3 +254,17 @@ def dataframe_from_graphs(
 
 def sort_documents(documents: Sequence[ET.Element]) -> Sequence[ET.Element]:
     return sorted(documents, key=lambda x: x.get('source_file'))
+
+
+def count_based_X_y(dataframe: pd.DataFrame, tag_names=('fact',),
+                    label_column='label', concat_token=' '):
+    """Split features and labels.
+
+    Features concatenated together and returned as a ``Series``.
+
+    Labels are dummy encoded.
+    """
+    return (
+        (dataframe[list(tag_names)] + concat_token).sum(axis=1),
+        dataframe[label_column]
+    )
