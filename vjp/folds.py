@@ -5,8 +5,9 @@ from functools import reduce
 
 import pandas as pd
 import numpy as np
-from mip import Model, xsum, minimize, BINARY, INTEGER
-
+# from mip import Model, xsum, minimize, BINARY, INTEGER
+from pulp import LpProblem, LpVariable, lpSum, GLPK, COIN
+from pulp import const
 
 def compute_folds(samples, num_folds=5, verbose=False,
                   max_seconds=10) -> Tuple[List[bool], ...]:
@@ -31,26 +32,27 @@ def compute_folds(samples, num_folds=5, verbose=False,
     total_instances = sum(map(sum, samples))
     fold_ratio = total_instances / (num_folds * 2)
 
-    model = Model('balanced kfolds')
-    model.verbose = verbose
+    model = LpProblem(name='balanced_kfolds', sense=const.LpMinimize)
 
     # folds_x[fold_index][sample_index]
-    folds_x = [[model.add_var(var_type=BINARY) for _ in samples_range]
-               for _ in folds_range]
-    max_ = model.add_var(var_type=INTEGER)
+    folds_x = [[LpVariable(name=f"folds_x[{i}][{j}]", cat=const.LpBinary) for i in samples_range]
+               for j in folds_range]
+    max_ = LpVariable(name="max_", cat=const.LpInteger)
+
+    model += max_
 
     # Each sample is exclusive to one fold
     for sample_index in samples_range:
-        model += xsum(folds_x[fold_index][sample_index]
+        model += lpSum(folds_x[fold_index][sample_index]
                       for fold_index in folds_range) == 1
 
     # Compute counts for positive and negative labels,
     # minimize their distance from the target amounts
-    positives = [xsum(folds_x[fold_index][sample_index]
+    positives = [lpSum(folds_x[fold_index][sample_index]
                       * samples[sample_index][1]
                       for sample_index in samples_range)
                  for fold_index in folds_range]
-    negatives = [xsum(folds_x[fold_index][sample_index]
+    negatives = [lpSum(folds_x[fold_index][sample_index]
                       * samples[sample_index][0]
                       for sample_index in samples_range)
                  for fold_index in folds_range]
@@ -59,9 +61,7 @@ def compute_folds(samples, num_folds=5, verbose=False,
         model += value - fold_ratio <= max_
         model += - (value - fold_ratio) <= max_
 
-    model.objective = minimize(max_)
-
-    status = model.optimize(max_seconds=max_seconds)
+    status = model.solve(COIN(msg=verbose, options=['RandomS 42']))
 
     if verbose:
         output_folds = [[] for _ in folds_range]
@@ -69,7 +69,8 @@ def compute_folds(samples, num_folds=5, verbose=False,
         folds_values_negatives = [0] * num_folds
         for fold_index in folds_range:
             for sample_index in samples_range:
-                if folds_x[fold_index][sample_index].x:
+                print(folds_x[fold_index][sample_index].varValue)
+                if folds_x[fold_index][sample_index].varValue:
                     output_folds[fold_index].append(sample_index)
                     folds_values_positives[fold_index] += samples[
                         sample_index][1]
@@ -83,7 +84,7 @@ def compute_folds(samples, num_folds=5, verbose=False,
         print('status', status)
 
     return tuple(
-        list(map(lambda x: bool(round(x.x)), fold_vars))
+        list(map(lambda x: bool(round(x.varValue)), fold_vars))
         for fold_vars in folds_x
     )
 
