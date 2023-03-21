@@ -5,12 +5,12 @@ from functools import reduce
 
 import pandas as pd
 import numpy as np
-# from mip import Model, xsum, minimize, BINARY, INTEGER
-from pulp import LpProblem, LpVariable, lpSum, GLPK, COIN
+from pulp import LpProblem, LpVariable, lpSum, COIN
 from pulp import const
 
+
 def compute_folds(samples, num_folds=5, verbose=False,
-                  max_seconds=10) -> Tuple[List[bool], ...]:
+                  max_seconds=10, seed=None) -> Tuple[List[bool], ...]:
     """Retrieve balanced kfolds at document level.
 
     Expects as input a ``(N, 2)`` matrix where each sample represents a
@@ -35,7 +35,8 @@ def compute_folds(samples, num_folds=5, verbose=False,
     model = LpProblem(name='balanced_kfolds', sense=const.LpMinimize)
 
     # folds_x[fold_index][sample_index]
-    folds_x = [[LpVariable(name=f"folds_x[{i}][{j}]", cat=const.LpBinary) for i in samples_range]
+    folds_x = [[LpVariable(name=f"folds_x[{i}][{j}]", cat=const.LpBinary)
+                for i in samples_range]
                for j in folds_range]
     max_ = LpVariable(name="max_", cat=const.LpInteger)
 
@@ -44,24 +45,27 @@ def compute_folds(samples, num_folds=5, verbose=False,
     # Each sample is exclusive to one fold
     for sample_index in samples_range:
         model += lpSum(folds_x[fold_index][sample_index]
-                      for fold_index in folds_range) == 1
+                       for fold_index in folds_range) == 1
 
     # Compute counts for positive and negative labels,
     # minimize their distance from the target amounts
     positives = [lpSum(folds_x[fold_index][sample_index]
-                      * samples[sample_index][1]
-                      for sample_index in samples_range)
+                       * samples[sample_index][1]
+                       for sample_index in samples_range)
                  for fold_index in folds_range]
     negatives = [lpSum(folds_x[fold_index][sample_index]
-                      * samples[sample_index][0]
-                      for sample_index in samples_range)
+                       * samples[sample_index][0]
+                       for sample_index in samples_range)
                  for fold_index in folds_range]
 
     for value in chain(positives, negatives):
         model += value - fold_ratio <= max_
         model += - (value - fold_ratio) <= max_
 
-    status = model.solve(COIN(msg=verbose, options=['RandomS 42']))
+    options = []
+    if seed is not None:
+        options.append(f'RandomS {seed}')
+    status = model.solve(COIN(msg=verbose, options=options))
 
     if verbose:
         output_folds = [[] for _ in folds_range]
@@ -90,7 +94,8 @@ def compute_folds(samples, num_folds=5, verbose=False,
 
 
 def compute_decision_folds(dataframe: pd.DataFrame, num_folds=5, verbose=False,
-                           max_seconds=10) -> Tuple[List[bool], ...]:
+                           max_seconds=10,
+                           seed=None) -> Tuple[List[bool], ...]:
     """Use :func:`compute_folds` to compute a split at decision level.
 
     Meaning of optional arguments and output format are relatable to
@@ -105,15 +110,16 @@ def compute_decision_folds(dataframe: pd.DataFrame, num_folds=5, verbose=False,
     document_folds = compute_folds(document_labels_df.values,
                                    num_folds=num_folds,
                                    verbose=verbose,
-                                   max_seconds=max_seconds)
+                                   max_seconds=max_seconds,
+                                   seed=seed)
 
     return tuple(
         dataframe.document_index.isin(document_labels_df[document_fold].index)
         for document_fold in document_folds)
 
 
-def split(dataframe: pd.DataFrame, num_folds=5, max_seconds=10
-          ) -> Iterable[Tuple[List[int], List[int]]]:
+def split(dataframe: pd.DataFrame, num_folds=5, max_seconds=10,
+          seed=None) -> Iterable[Tuple[List[int], List[int]]]:
     """Generator of train-test splits based on document level kfolds.
 
     Designed to be in a format similar to the one of ``scikit-learn``
@@ -123,7 +129,7 @@ def split(dataframe: pd.DataFrame, num_folds=5, max_seconds=10
     Yields a pair of list of indeces: ``(train_indeces, test_indeces)``
     """
     folds = compute_decision_folds(dataframe, num_folds=num_folds,
-                                   max_seconds=max_seconds)
+                                   max_seconds=max_seconds, seed=seed)
     for i, test_split in enumerate(folds):
         train_folds = folds[:i] + folds[i + 1:]
         train_split = reduce(or_, train_folds,
