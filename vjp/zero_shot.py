@@ -4,11 +4,20 @@ import pandas as pd
 from sklearn.base import BaseEstimator
 import tiktoken
 from tqdm.auto import tqdm
+import re
 
-MAX_TOKEN_FOR_PROMPT = 2000
+MAX_TOKEN_FOR_PROMPT = 1980
+
+# words returned from davinci model
+REJECTED_WORDS = "reject", "respin", "infondat", "yes", "sì", "riget"
+UPHELD_WORDS = "accolt", "upheld", "no", 
+
+# word that mark the answer as useless
+USELESS_WORDS = ('?',)
+
 
 class OpenAiClassifier(BaseEstimator):
-    def __init__(self, api_key, features, engine: str="davinci", max_competation_token: int=8) -> None:
+    def __init__(self, api_key, features, engine: str="davinci", max_competation_token: int=20) -> None:
         super().__init__()
         openai.api_key = api_key
         self.tokenizer = tiktoken.encoding_for_model(engine)
@@ -27,12 +36,24 @@ class OpenAiClassifier(BaseEstimator):
         predictions = []
         for text in tqdm(X):
             prompt = self.write_prompt_for_sample(text, self.remaining_size)
-
             while True:
-                response = self.send_prompt(prompt)
-                if not self.retry_prompt(response):
+                while True:
+                    responses = self.send_prompt(prompt)
+
+                    responses = self.filter_useless_responses(responses)
+
+                    if len(responses) >= 1:
+                        break
+
+                count_rejected = self.count_rejected(responses)
+                count_upheld = self.count_upheld(responses)
+                if count_upheld != count_rejected:
                     break
-            predictions.append(self.is_response_rejected(response))
+            
+            is_upheld = count_upheld > count_rejected
+
+            # print(count_upheld, count_rejected, responses)
+            predictions.append(is_upheld)
         return predictions
 
     def calculate_best_threshold(self, sample: dict, max_length: int, 
@@ -81,23 +102,35 @@ class OpenAiClassifier(BaseEstimator):
             prompt += f"The final decision is:\n" \
                       f"{cut_feature(sample['dec'])}\n\n"
             
-        prompt += "Is the proces rejected? respond with true or false"
+        prompt += "Is the appeal rejected?"
                 
         return prompt
     
-    def retry_prompt(self, response: str) -> bool:
-        # TODO is ok to write this rules? This is in case the response is
-        # a repetition of the prompt
-        if "true or false" in response:
-            return True
-        if len(response) < 5:
-            return True
-        return False
+    def filter_useless_responses(self, responses: list[str]) -> list[str] :
+
+        
+        ret = []
+        for r in responses:
+            if len(r.split(" ")) < 3:
+                continue
+
+            # if there are both rejected and upheld word
+            # or it there is none of both
+            if (any(rw in r for rw in REJECTED_WORDS) ==
+                any(uw in r for uw in UPHELD_WORDS)):
+                continue 
+            
+            if any(uw in r for uw in USELESS_WORDS):
+                continue
+
+            ret.append(r)
+        return ret
     
-    def is_response_rejected(self, response: str) -> bool:
-        # TODO is ok to write this rules?
-        rejected_words = "rejected", "respinge", "true", "infondata"
-        return any(w in response for w in rejected_words)
+    def count_rejected(self, responses: list[str]) -> bool:
+        return sum(any(w in r for r in responses) for w in REJECTED_WORDS)
+    
+    def count_upheld(self, responses: list[str]) -> bool:
+        return sum(any(w in r for r in responses) for w in UPHELD_WORDS)
 
     def send_prompt(self, prompt: str, temperature=0.7) -> bool:
         response = openai.Completion.create(
@@ -105,7 +138,7 @@ class OpenAiClassifier(BaseEstimator):
             prompt=prompt,
             max_tokens=self.max_competation_token,
             temperature=temperature,
-            n=1,
+            n=5,
             stop=None,
         )
-        return response.choices[0].text
+        return [re.sub(r'\s+', ' ', c.text).lower() for c in response.choices]
