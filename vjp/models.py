@@ -10,6 +10,7 @@ import vjp.data as data
 
 CVIterator = Iterable[Tuple[Sequence[int], Sequence[int]]]
 DEFAULT_TAGS = 'fact', 'req', 'claim', 'arg'
+ALL_TAGS = 'fact', 'req', 'arg', 'claim', 'mot', 'dec'
 
 
 def cross_validate(model: BaseEstimator, dataframe: pd.DataFrame,
