@@ -6,4 +6,3 @@ nltk
 scikit-learn
 gensim
 pulp
-matplotlib
