@@ -285,3 +285,73 @@ def count_based_X_y(dataframe: pd.DataFrame, tag_names=('fact',),
         (dataframe[list(tag_names)] + concat_token).sum(axis=1),
         dataframe[label_column]
     )
+
+
+def shot_based_document(document: ET.Element) -> Tuple[str, str]:
+    """Split a document in: preliminary part and decisional part.
+
+    This split removes the entire XML structure but keeps the document's
+    order. Mostly used for x-shot learning on large language models that
+    could benefit from the cronological order of the document.
+
+    Data is internally copied to prevent modifications on input
+    documents.
+    """
+    document_copy = copy.deepcopy(document)
+
+    decision_element_parent = document_copy.find(".//courtdec[@G='2']/..")
+    if decision_element_parent is None:
+        raise ValueError('No decision found in the given document')
+
+    # Parent of decision and motivation elements is supposed to be the same
+    decision_element = decision_element_parent.find('./courtdec')
+    motivation_element = decision_element_parent.find('./courtmot')
+
+    decision_split_strings = []
+
+    if motivation_element is not None:
+        decision_split_strings.append(
+            ET.tostring(motivation_element, method='text', encoding='unicode'))
+
+        # Remove mot/decision elements in order to get a split with
+        # preliminaries only
+        decision_element_parent.remove(motivation_element)
+    decision_element_parent.remove(decision_element)
+
+    decision_split_strings.append(ET.tostring(decision_element, method='text',
+                                              encoding='unicode'))
+
+    return (
+        ET.tostring(document_copy, method='text', encoding='unicode'),
+        '\n'.join(decision_split_strings))
+
+
+def shot_based_dataframe(upheld: Sequence[ET.Element],
+                         rejected: Sequence[ET.Element]) -> pd.DataFrame:
+    """Build a dataframe for x-shot classification.
+
+    The resulting dataframe consists in one record per given document.
+    Columns::
+
+    - ``preliminaries``: string split of the document containing only
+        the preliminary information: mostly requests, claims and
+        arguments as well as past info from first instance (if present).
+    - ``decisions``: string split of the document containing only the
+        decisional information: mostly court motivations and final
+        sentence.
+    - ``label``: classification target, either 0 (reject) or 1 (uphold).
+
+    Internally, :func:`shot_based_document` is used, meaning that the
+    syntactic structure of the document is kept intact. In order to
+    retrieve the full document just concatenate ``preliminaries`` and
+    ``decisions``.
+
+    TODO: do we want to explore further subdivisions? Document structure
+    permits the following: motivations (extracted from decisions), first
+    instance info (extracted from preliminaries).
+    """
+    upheld_tuples = map(lambda d: (*shot_based_document(d), 1), upheld)
+    rejected_tuples = map(lambda d: (*shot_based_document(d), 0), rejected)
+
+    return pd.DataFrame(list(chain(upheld_tuples, rejected_tuples)),
+                        columns=('preliminaries', 'decisions', 'label'))
