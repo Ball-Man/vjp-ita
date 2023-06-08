@@ -1,7 +1,9 @@
 """Data loading and manipulation."""
 import os
-from typing import List, Sequence
+import copy
+from typing import List, Sequence, Tuple
 import xml.etree.ElementTree as ET
+from itertools import chain
 
 import importlib_resources as resources
 import pandas as pd
@@ -45,6 +47,21 @@ def load_second_instance() -> List[ET.Element]:
         load_directory(resources.files(SECOND_INSTANCE_UPHOLD_RESOURCES))
         + load_directory(resources.files(SECOND_INSTANCE_REJECT_RESOURCES))
     )
+
+
+def load_second_instance_labeled() -> Tuple[List[ET.Element],
+                                            List[ET.Element]]:
+    """Load all second instance samples, divided by upheld/rejected.
+
+    This is a high abstraction document level label, based on the
+    directory subdivision made by the original dataset. Subdecisions
+    are ignored in order to build a simplified problem that can easily
+    be submitted to large language models.
+
+    Return format is: ``(list_of_upheld, list_of_rejected)``.
+    """
+    return (load_directory(resources.files(SECOND_INSTANCE_UPHOLD_RESOURCES)),
+            load_directory(resources.files(SECOND_INSTANCE_REJECT_RESOURCES)))
 
 
 def findall(instances: Sequence[ET.Element], query: str) -> List[ET.Element]:
