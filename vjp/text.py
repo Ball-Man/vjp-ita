@@ -1,4 +1,5 @@
 """Text manipulation."""
+import re
 from typing import Callable, Dict
 from functools import partial
 
@@ -9,6 +10,13 @@ from gensim.parsing.preprocessing import remove_stopwords as rem_stopwords
 import vjp.lemmatization as lemmatization
 
 lemmatization_dict: Dict[str, str] = lemmatization.load_lemmas()
+
+# Can be used in pipelines to substitute whitespaces (and more)
+multiple_newlines_re = re.compile(r'\n+')
+multiple_spaces_re = re.compile(r' +')
+all_whites_re = re.compile(r'\s+')
+weird_whites_re = re.compile(r'[\r\t\f\v]+')
+trailing_line_spaces_re = re.compile(r'\n\s+|\n\s+')
 
 
 def load_stopwords():
@@ -105,4 +113,31 @@ All symbols and stopwords are removed. Words are lemmatized.
 Unknown lemmas are kept unchanged.
 
 Uses :attr:`count_pipeline_head` as head.
+"""
+
+# TODO: add a pipeline function to remove special characters only?
+#       keep punctuation but remove stupid ascii characters.
+shot_normalize_whites_pipeline = text_pipeline(
+    partial(weird_whites_re.sub, ''),
+    partial(multiple_newlines_re.sub, '\n'),
+    partial(multiple_spaces_re.sub, ' '),
+    partial(trailing_line_spaces_re.sub, '')
+    # str.strip
+)
+"""Text preprocessing pipeline for x-shot learning (LLMs).
+
+In order::
+
+- Weird whitespaces (e.g. artifacts from XML structure) are removed.
+- Multiple whitespaces are collapsed into one.
+- Multiple newlines are collapsed into one.
+- Trailing spaces are stripped.
+
+Since some large language models will treat different spaces
+differently, the most informative white characters (namely newline,
+spaces) are kept, but normalized. Any other weird character is removed.
+
+It could be interesting experimenting with different and/or more
+simplistic setups (e.g. remove all white characters and replace them
+with whitespaces only).
 """
