@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 README = open('README.md').read()
 REQUIREMENTS = open('requirements.txt').read().splitlines()
@@ -21,8 +21,11 @@ setup(name='vjp',
       # author='Francesco Mistri',
       # author_email='franc.mistri@gmail.com',
       license='MIT',
-      packages=find_packages(),
+      packages=find_namespace_packages(),
       install_requires=REQUIREMENTS,
       extras_require={
-        'zeroshot': REQUIREMENTS_ZERO_SHOT}
+        'zeroshot': REQUIREMENTS_ZERO_SHOT},
+      package_data={
+        "vjp.dataset": ['**/*.*']},
+      include_package_data=True
       )
