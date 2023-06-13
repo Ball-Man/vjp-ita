@@ -21,11 +21,13 @@ setup(name='vjp',
       # author='Francesco Mistri',
       # author_email='franc.mistri@gmail.com',
       license='MIT',
+      license_files=['LICENSE', 'lemmatization-lists-LICENCE'],
       packages=find_namespace_packages(),
       install_requires=REQUIREMENTS,
       extras_require={
         'zeroshot': REQUIREMENTS_ZERO_SHOT},
       package_data={
-        "vjp.dataset": ['**/*.*']},
+        'vjp.dataset': ['**/*.*'],
+        'vjp.lemmatization': ['*.txt']},
       include_package_data=True
       )
