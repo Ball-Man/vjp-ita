@@ -287,7 +287,7 @@ def count_based_X_y(dataframe: pd.DataFrame, tag_names=('fact',),
     )
 
 
-def shot_based_document(document: ET.Element) -> Tuple[str, str]:
+def shot_based_document(document: ET.Element, only_proc: bool=True) -> Tuple[str, str]:
     """Split a document in: preliminary part and decisional part.
 
     This split removes the entire XML structure but keeps the document's
@@ -298,6 +298,9 @@ def shot_based_document(document: ET.Element) -> Tuple[str, str]:
     documents.
     """
     document_copy = copy.deepcopy(document)
+    
+    
+
 
     decision_element_parent = document_copy.find(".//courtdec[@G='2']/..")
     if decision_element_parent is None:
