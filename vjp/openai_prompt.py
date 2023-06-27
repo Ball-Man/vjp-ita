@@ -4,13 +4,15 @@ import tiktoken
 
 MAX_TOKEN_FOR_PROMPT = 5
 
+
 class Prompt:
+
     def __init__(self,
                  template: str,
                  verbalizer: Tuple[str, str],
-                 model_short_name: str="gpt-3.5-turbo",
-                 model_long_name: str="gpt-3.5-turbo-16k",
-                 few_shot_data: list=None) -> None:
+                 model_short_name: str = "gpt-3.5-turbo",
+                 model_long_name: str = "gpt-3.5-turbo-16k",
+                 few_shot_data: list = None) -> None:
         self.template = template
         self.verbalizer = verbalizer
 
@@ -23,7 +25,7 @@ class Prompt:
         self.cache = {}
 
     def create_prompt(self, process: dict,
-                      with_mot: bool=False) -> list[dict]:
+                      with_mot: bool = False) -> list[dict]:
         messages = [
             {"role": "system",
              "content": self.template.format(*self.verbalizer)},
@@ -33,12 +35,15 @@ class Prompt:
 
         text = self._process_message(process, with_mot)
         messages.append({"role": "user",
-                         "content": f"###START OF USER TEXT\n{text}\n###END OF USER TEXT"})
+                         "content": "###START OF USER TEXT"
+                                    f"\n{text}\n"
+                                    "###END OF USER TEXT"})
 
         return messages
 
-    def send_prompt(self, prompt: list[dict], mockup: bool=False) -> str:
-        num_token = len(self.short_tokenizer.encode(self.get_nice_prompt(prompt)))
+    def send_prompt(self, prompt: list[dict], mockup: bool = False) -> str:
+        num_token = len(self.short_tokenizer.encode(
+            self.get_nice_prompt(prompt)))
 
         if num_token > 4090:
             model_name = self.model_long_name
@@ -47,7 +52,8 @@ class Prompt:
             model_name = self.model_short_name
 
         hashable_prompt = tuple(tuple(sorted(turn.items())) for turn in prompt)
-        if model_name in self.cache and hashable_prompt in self.cache[model_name]:
+        if (model_name in self.cache
+                and hashable_prompt in self.cache[model_name]):
             return self.cache[model_name][hashable_prompt]
 
         def _actually_send(prompt):
@@ -92,10 +98,10 @@ class Prompt:
         return res
 
     def _get_few_shots():
-        #TODO
+        # TODO
         return []
 
-    def _process_message(self, process: dict, with_mot: bool=False):
+    def _process_message(self, process: dict, with_mot: bool = False):
         message = process['preliminaries']
         if with_mot:
             message += process['decisions']
