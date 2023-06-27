@@ -121,8 +121,8 @@ shot_normalize_whites_pipeline = text_pipeline(
     partial(weird_whites_re.sub, ''),
     partial(multiple_newlines_re.sub, '\n'),
     partial(multiple_spaces_re.sub, ' '),
-    partial(trailing_line_spaces_re.sub, '')
-    # str.strip
+    partial(trailing_line_spaces_re.sub, ''),
+    str.strip
 )
 """Text preprocessing pipeline for x-shot learning (LLMs).
 
