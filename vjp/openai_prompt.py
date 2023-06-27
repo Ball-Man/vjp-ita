@@ -1,16 +1,19 @@
-from functools import lru_cache
+from typing import Tuple
 import openai
 import tiktoken
-import vjp.text as text
 
 MAX_TOKEN_FOR_PROMPT = 5
 
 class Prompt:
     def __init__(self,
+                 template: str,
+                 verbalizer: Tuple[str, str],
                  model_short_name: str="gpt-3.5-turbo",
                  model_long_name: str="gpt-3.5-turbo-16k",
                  few_shot_data: list=None) -> None:
-        
+        self.template = template
+        self.verbalizer = verbalizer
+
         self.model_short_name = model_short_name
         self.model_long_name = model_long_name
 
@@ -18,14 +21,12 @@ class Prompt:
 
         self.few_shot_data = few_shot_data
         self.cache = {}
-        
-    def create_prompt(self, process: dict, with_mot: bool=False) -> list[dict]:
+
+    def create_prompt(self, process: dict,
+                      with_mot: bool=False) -> list[dict]:
         messages = [
             {"role": "system",
-             "content":
-'''You are a system that decide, given some informations, if a giuridical appeal is 'uphold' or 'reject' using the italian laws.
-The output must not contains any explanation: the format for the output must be 'Result = uphold' or 'Result = reject'.
-'''},
+             "content": self.template.format(*self.verbalizer)},
         ]
         if self.few_shot_data is not None:
             messages.extend(self._get_few_shots())
@@ -51,7 +52,7 @@ The output must not contains any explanation: the format for the output must be 
 
         def _actually_send(prompt):
             if mockup:
-                return "reject"
+                return self.verbalizer[1]
             import time
             while True:
                 try:
@@ -69,18 +70,19 @@ The output must not contains any explanation: the format for the output must be 
 
         if model_name not in self.cache:
             self.cache[model_name] = {}
-        
+
         self.cache[model_name][hashable_prompt] = res
         return res
-    
+
     def interpret_response(self, response: str):
-        if 'reject' in response:
-            return 0
-        elif 'uphold' in response:
+        response = response.lower()
+        if self.verbalizer[0] in response:
             return 1
+        elif self.verbalizer[1] in response:
+            return 0
         else:
             raise Exception("Result not in the correct format")
-    
+
     def get_nice_prompt(self, prompt: list[dict]):
         res = ""
         for message in prompt:
@@ -92,9 +94,10 @@ The output must not contains any explanation: the format for the output must be 
     def _get_few_shots():
         #TODO
         return []
-    
+
     def _process_message(self, process: dict, with_mot: bool=False):
+        message = process['preliminaries']
         if with_mot:
-            return text.shot_normalize_whites_pipeline(process['preliminaries'])\
-                  + text.shot_normalize_whites_pipeline(process['decisions'])
-        return text.shot_normalize_whites_pipeline(process['preliminaries'])
+            message += process['decisions']
+
+        return message
