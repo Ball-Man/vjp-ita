@@ -7,6 +7,8 @@ print(REQUIREMENTS)
 # Optional dependencies
 REQUIREMENTS_ZERO_SHOT = open(
     'requirements_zero_shot.txt').read().splitlines()
+REQUIREMENTS_FEW_SHOT = open(
+    'requirements_few_shot.txt').read().splitlines()
 REQUIREMENTS_ALL = REQUIREMENTS + REQUIREMENTS_ZERO_SHOT
 
 setup(name='vjp',
@@ -25,7 +27,8 @@ setup(name='vjp',
       packages=find_namespace_packages(),
       install_requires=REQUIREMENTS,
       extras_require={
-        'zeroshot': REQUIREMENTS_ZERO_SHOT},
+        'zeroshot': REQUIREMENTS_ZERO_SHOT,
+        'fewshot': REQUIREMENTS_FEW_SHOT},
       package_data={
         'vjp.dataset': ['**/*.*'],
         'vjp.lemmatization': ['*.txt']},
