@@ -1,0 +1,4 @@
+transformers[torch]
+ray[tune]
+bayesian-optimization
+wandb
