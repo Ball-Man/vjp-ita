@@ -9,7 +9,8 @@ REQUIREMENTS_ZERO_SHOT = open(
     'requirements_zero_shot.txt').read().splitlines()
 REQUIREMENTS_FEW_SHOT = open(
     'requirements_few_shot.txt').read().splitlines()
-REQUIREMENTS_ALL = REQUIREMENTS + REQUIREMENTS_ZERO_SHOT
+REQUIREMENTS_ALL = (REQUIREMENTS + REQUIREMENTS_ZERO_SHOT
+                    + REQUIREMENTS_FEW_SHOT)
 
 setup(name='vjp',
       classifiers=['Intended Audience :: Developers',
