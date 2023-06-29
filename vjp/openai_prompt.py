@@ -20,6 +20,7 @@ class Prompt:
         self.model_long_name = model_long_name
 
         self.short_tokenizer = tiktoken.encoding_for_model(model_short_name)
+        self.long_tokenizer = tiktoken.encoding_for_model(model_long_name)
 
         self.few_shot_data = few_shot_data
         self.cache = {}
@@ -31,19 +32,28 @@ class Prompt:
              "content": self.template.format(*self.verbalizer)},
         ]
         if self.few_shot_data is not None:
-            messages.extend(self._get_few_shots())
+            messages.extend(self._get_few_shots(with_mot))
 
         text = self._process_message(process, with_mot)
         messages.append({"role": "user",
-                         "content": "###START OF USER TEXT"
-                                    f"\n{text}\n"
-                                    "###END OF USER TEXT"})
+                         "content": text})
 
         return messages
+    
+    def truncate_content_to_size(self, content, size=16370):
+        if len(self.long_tokenizer.encode(content)) > size:
+            return self.truncate_content_to_size(content[:-1], size)
+        return content
 
     def send_prompt(self, prompt: list[dict], mockup: bool = False) -> str:
         num_token = len(self.short_tokenizer.encode(
             self.get_nice_prompt(prompt)))
+
+        if num_token > 16370:
+            if len(prompt) > 2:
+                assert prompt[1]['role'] == 'user'
+                prompt[1]['content'] = self.truncate_content_to_size(prompt[1]['content']) + "..."
+            print(f"ERROR: Contex size for message too long({num_token}). Message truncated")
 
         if num_token > 4090:
             model_name = self.model_long_name
@@ -97,13 +107,21 @@ class Prompt:
             res += f'{content}\n'
         return res
 
-    def _get_few_shots():
-        # TODO
-        return []
+    def _get_few_shots(self, with_mot: bool=False):
+        messages = []
+        for shot in self.few_shot_data:
+            messages.append({
+                'role': 'user',
+                'content': self._process_message(shot, with_mot)})
+            messages.append({
+                'role': 'assistant',
+                'content': self.verbalizer[0] if shot['label'] == 1 else self.verbalizer[1]
+            })
+        return messages
 
     def _process_message(self, process: dict, with_mot: bool = False):
         message = process['preliminaries']
         if with_mot:
-            message += process['decisions']
+            message += " " + process['decisions']
 
         return message
