@@ -29,7 +29,8 @@ setup(name='vjp',
       install_requires=REQUIREMENTS,
       extras_require={
         'zeroshot': REQUIREMENTS_ZERO_SHOT,
-        'fewshot': REQUIREMENTS_FEW_SHOT},
+        'fewshot': REQUIREMENTS_FEW_SHOT,
+        'all': REQUIREMENTS_ALL},
       package_data={
         'vjp.dataset': ['**/*.*'],
         'vjp.lemmatization': ['*.txt']},
