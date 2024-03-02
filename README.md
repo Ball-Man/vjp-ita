@@ -42,11 +42,11 @@ A user-wide jupyter installation is required. **On Windows**, `python` calls may
 
 ## Package structure
 Results and analysis can be inspected directly opening the notebook. They can also be viewed directly on GitHub. Running them is only necessary if you want to reproduce or alter results. The notebooks:
-* `data_exploration.ipynb` contains an analysis of the dataset.
-* `count_based.ipynb` solves the problem and analyzes the results via a tf-idf encoding fed to a LinearSVC and a Random Forest.
-* `zero_shot.ipynb` explores zero-shot prompting approaches on GPT 3.5 turbo.
-* `one_shot.ipynb` expands the zero-shot approaches with in-context learning.
-* `few_shot.ipynb` explores few-shot methods via fine tuning and prompting of Masked Language Models. In particular, Umberto, a Roberta based Masked LM trained on an Italian corpus.
+* [data_exploration.ipynb](data_exploration.ipynb) contains an analysis of the dataset.
+* [count_based.ipynb](count_based.ipynb) solves the problem and analyzes the results via a tf-idf encoding fed to a LinearSVC and a Random Forest.
+* [zero_shot.ipynb](zero_shot.ipynb) explores zero-shot prompting approaches on GPT 3.5 turbo.
+* [one_shot.ipynb](one_shot.ipynb) expands the zero-shot approaches with in-context learning.
+* [few_shot.ipynb](few_shot.ipynb) explores few-shot methods via fine tuning and prompting of Masked Language Models. In particular, Umberto, a Roberta based Masked LM trained on an Italian corpus.
 
 All the relevant code is contained in a well formed python package `vjp`:
 * `vjp.data` provides all the tools to handle and preprocess data
