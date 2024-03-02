@@ -1,4 +1,11 @@
 # Italian VAT Judgement Prediction
+Prediction of Italian VAT judgements based on the corpus provided by the [Adele project](https://github.com/adele-project/italianVAT).
+
+This repository contains extensive data exploration of the dataset and a collection of ML approaches. These approaches include classical ML models, zero and one-shot prompting to GPT and fine tuning of BERT-like models. See [Package structure](#package=structure) to know more.
+
+> [!WARNING]\
+> This project used to work with a confidential version of the dataset from the Adele project. It was not possible to keep this project open source with the inclusion of the dataset. However, the currently available corpus, linked above, is missing many of the required annotations to make the project work. For this reason, it is not possible to replicate the experiments without introduction of a new dataset carefully annotated as depicted by [data_exploration.ipynb](data_exploration.ipynb).
+
 ## Installation
 Python >= 3.9 is required. All the dependencies can be installed via pip:
 ```
